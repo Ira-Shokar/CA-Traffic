@@ -1,4 +1,4 @@
-def single_lane_road_periodic_gen2(n, div, vmax, density, prob_car_daw, max_iterations):
+def single_lane_road_periodic(n, div, vmax, density, prob_car_daw, max_iterations):
     ''' Function to generate a road and while cars are generated and move according to a set of rules.
         Inputs:
         n = length of the road
@@ -105,6 +105,9 @@ def single_lane_road_periodic_gen2(n, div, vmax, density, prob_car_daw, max_iter
         data[iterations, 2]= round(sum(road)/np.count_nonzero(road) -1, 2)
         data[iterations, 3]= round((np.count_nonzero(road)/n)*sum(road)/np.count_nonzero(road) -1, 2) 
         
+        #average speed over all iterations
+        av = round(sum(data[:,2])/max_iterations, 2)
+        
         
         ### Alternate visualiation tools ###
         
@@ -127,13 +130,6 @@ def single_lane_road_periodic_gen2(n, div, vmax, density, prob_car_daw, max_iter
     ax11 = fig11.add_subplot(111)
     ax11.set_xlabel('Length Along Road')
     ax11.set_ylabel('Time step')
-    ax11.set_title("Visual Repsresentation of One Lane Traffic, With Density {} Cars per Space, Over {} Time Steps With Dawdeling Probability of {} %".format(density, max_iterations, prob_car_daw))
+    ax11.set_title("Visual Repsresentation of One Lane Traffic  With Density of {} cars/space Over {} Time Steps With Dawdeling Probability of {}%. Average Velocity = {} spaces/timestep.".format(density, max_iterations, prob_car_daw, av))
     ax11.imshow (matrix) 
-    
-    ### Display Data Graphically ###
-    #fig12= plt.figure(figsize=(10,0))
-    #ax12 = fig12.add_subplot(111)
-    #ax12.set_xlabel('Timestep')
-    #ax12.set_ylabel('Car Average Speed')
-    #ax12.plot(np.arange(0, max_iterations),data[:,2], color="blue")
     
