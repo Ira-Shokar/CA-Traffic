@@ -1,0 +1,141 @@
+def single_lane_road_periodic_gen(n, div, vmax, density, prob_car_daw, max_iterations):
+    ''' Function to generate a road and while cars are generated and move according to a set of rules.
+        Inputs:
+        n = length of the road
+        div = rate of new cars joining the road
+        vmax = max speed of the cars
+        density = density of cars on the road
+        prob_car_daw = probability of the cars dawdeling 
+        max_iterations = number of timesteps
+    ''' 
+    
+    #Create empty road and matrix to store iterations
+    road = np.zeros(n)                          
+    matrix = np.zeros((max_iterations, n))
+    data= np.zeros((max_iterations, 4))
+    iterations = 1
+    
+    ### Car Generation###
+    for i in range(round(n*density)):
+        ranspace = np.random.randint(0, n)
+        while road[ranspace]!=0:
+            ranspace = np.random.randint(0, n)
+        road[ranspace]=np.random.randint(2, vmax) 
+
+        
+    while iterations in range(max_iterations):
+        
+        #create loop like extention to the end of the road
+        road = np.concatenate((road, road[:5], np.zeros(5)))
+        
+        ### Rule 1 ###
+        
+        # If the velocity v of the car is lower than vmax , and the distance to the next car
+        # ahead is larger than v + 1, the speed is increased by one.
+        for i in range(np.size(road)-2):
+            if road[i]>1:                               
+                if sum(road[i+1:i+1+int(road[i])])==0:
+                    if road[i]<vmax:
+                        road[i]+=1
+            
+            
+               ### Rule 2###
+                
+               # If a driver at site i sees the next vehicle at site i+j, with j < v, 
+               # they reduce speed to j −1.  
+                else:
+                    count = i
+                    #If there is a car directly in front slow to stationary.
+                    if road[count+1]!=0:            
+                        road[i]=1
+                    else:
+                        while road[count+1]<1:
+                             #Count is the distance between two cars plus element index.
+                            count+=1 
+                            #Add 1 back on to account for the start being count +1.
+                            road[i]=count-i+1     
+                            
+               
+                ###Rule 3 ###
+                
+                # The velocity of each moving vehicle is decreased by one with probability p.
+                if np.random.randint(1, 100)<=prob_car_daw*100:       
+                    if road[i]>1:                                     
+                        road[i]-=1
+                        
+       
+        ### Rule 4 ###
+        
+        # Each vehicle is advanced by v sites.
+        
+            #Special case where car is stationary.
+            elif road[i]==1:                              
+                #If no cars in front, start moving at v=1.
+                if road[i+1]!=1:                
+                    road[i]=2
+        
+        
+        # As the vechicles move forward we have to iterate in reverse as cars move forward.
+        for i in range(np.size(road)-1, -1, -1):    
+
+            
+            #cars move forward 
+            if road[i]>0:                       
+                road= np.insert(road, i+int(road[i]), road[i])       
+                road = np.delete(road, i)
+                
+        
+        #reduce the road back to the original shape
+        road = np.concatenate((road[-10:-5], road[5:-10]))
+        
+   
+        #Visualisation
+        for i in range(np.size(road)):
+            if road[i]==0:
+                matrix[iterations,i]= 0
+            else:
+                matrix[iterations,i]= 1
+    
+       
+        ### Data collection ###
+        data[iterations, 0]= iterations
+        #car density
+        data[iterations, 1]= np.count_nonzero(road)/n
+        #average speed- accouting for the fact the values are one greater than the speed
+        data[iterations, 2]= round(sum(road)/np.count_nonzero(road) -1, 2)
+        data[iterations, 3]= round((np.count_nonzero(road)/n)*sum(road)/np.count_nonzero(road) -1, 2) 
+        
+        
+        ### Alternate visualiation tools ###
+        
+        #print(iterations, road)
+        
+        #street = []
+        #for i in range(np.size(road)):
+        #    if road[i]==0:
+        #        street.append(' ')
+        #    else:
+        #        street.append(road[i]-1)
+        #print(iterations , street)
+    
+        ###next time step ###
+        iterations +=1
+ 
+
+    ### Display Road ###
+    fig1 = plt.figure(figsize=(50,50))
+    ax1 = fig1.add_subplot(111)
+    ax1.imshow (matrix) 
+    
+    ### Display Data Graphically ###
+    fig, ax1 = plt.subplots()
+    ax1.set_ylabel('Timestep')
+    ax1.set_ylabel('Car desity')
+    ax1.plot(np.arange(0, max_iterations),data[:,1], color="red")
+    ax2 = ax1.twinx()  # second axes that shares the same x-axis
+    ax2.set_ylabel('Car Average Speed')
+    ax2.plot(np.arange(0, max_iterations),data[:,2], color="blue")
+    
+    ax3 = ax1.twinx()  # second axes that shares the same x-axis
+    ax3.plot(np.arange(0, max_iterations),data[:,3], color="orange")
+    
