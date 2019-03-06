@@ -1,0 +1,350 @@
+def triple_lane_road_periodic(n, vmax_lorries, vmax_cars, vmax_bikes, density, percent_lorries, percent_bikes, prob_car_daw, max_iterations):
+    ''' Function to generate a road and while cars are generated and move according to a set of rules.
+        Inputs:
+        n = length of the road
+        vmax = max speed of the cars
+        density = density of cars on the road
+        prob_car_daw = probability of the cars dawdeling 
+        max_iterations = number of timesteps
+    ''' 
+    
+    #Create empty road and matrix to store iterations
+    tripleroad = np.zeros((3,n), dtype = complex)                         
+    matrix = np.zeros((4*(max_iterations-1) -1 , n))
+    data= np.zeros((2*max_iterations, 2))
+    iterations = 1
+    
+    ### Car Generation ###
+    for j in range(3):
+        for i in range(round(n*density)):
+            ranspace = np.random.randint(0, n)
+            while tripleroad[j,ranspace]!=0:
+                ranspace = np.random.randint(0, n)
+            if np.random.randint(1, 100)<percent_lorries*100 and j<2:  
+                tripleroad[j, ranspace]=np.random.randint(2, vmax_lorries) -1j
+            elif np.random.randint(1, 100)<percent_bikes*200:
+                tripleroad[j, ranspace]=np.random.randint(2, vmax_bikes) +1j
+            else:
+                tripleroad[j, ranspace]=np.random.randint(2, vmax_cars)
+               
+    while iterations in range(max_iterations):
+        
+        #create loop like extention to the end of the road
+        leftlane = np.concatenate((tripleroad[0,], tripleroad[0,]))
+        middlelane = np.concatenate((tripleroad[1,], tripleroad[1,]))
+        rightlane = np.concatenate((tripleroad[2,], tripleroad[2,]))
+
+        for i in range(n-vmax_bikes, -1, -1):
+            
+            #setting the max speed depending on vehicle type
+            if leftlane[i].imag == -1:
+                vmax = vmax_lorries
+            elif leftlane[i].imag == 1:
+                vmax = vmax_bikes
+            else:
+                vmax = vmax_cars
+                
+            #for the middle lane
+            if middlelane[i].imag == -1:
+                vmax = vmax_lorries
+            elif middlelane[i].imag == 1:
+                vmax = vmax_bikes
+            else:
+                vmax = vmax_cars
+                
+            #for the right lane
+            if rightlane[i].imag == -1:
+                vmax = vmax_lorries
+            elif rightlane[i].imag == 1:
+                vmax = vmax_bikes
+            else:
+                vmax = vmax_cars
+            
+            
+            ### Overtaking ###
+        
+            #cars in the left lane:
+            if leftlane[i].real>1:
+                #space in the middle lane for it to move forward into
+                if middlelane[i].real==0:
+                    # are there cars in front?
+                    if sum(leftlane[i+1:i+int(leftlane[i].real)].real)!=0:
+                        #is it worth overtaking, the cars ahead:
+                        count = 0    #Count is the distance between two cars.
+                        while leftlane[i + count+1].real<1 and count<vmax:
+                            count+=1
+                        #if the velocity of the car is greater than the distance between
+                        if  leftlane[i].real>count: 
+                            #if the speed of the car is slowe than its max
+                            if leftlane[i].real< vmax: #leftlane[i + count+1].real: 
+                                #ensure we stay within index- this will not matter when we move to periodic system
+                                if i-vmax>0:
+                                    #ensuring the car behind in the middle lane wont have to slow down
+                                    count2 = 0 
+                                    while middlelane[i - count2 - 1].real<1 and count2<vmax:
+                                        count2+=1
+                                    #if the speed (1 timestep) of car behind is smaller than the distance
+                                    if middlelane[[i - count2-1]].real<count2:
+                        
+                                        #ensuring the car won't have to slow down in the middle lane
+                                        count3 = 0 
+                                        while middlelane[i + count3+1].real<1 and count3<=vmax:
+                                            count3+=1
+                                            
+                                        #no cars infront at distance equivalent to that will be travelled in one time step.
+                                        if  leftlane[i].real<count3:
+                                            leftlane[i]+=1
+                                            #move into the middle lane
+                                            middlelane = np.delete(middlelane, i)
+                                            middlelane = np.insert(middlelane, i, leftlane[i])
+                                                                  
+                                            leftlane = np.delete(leftlane, i)
+                                            leftlane = np.insert(leftlane, i, 0)
+                                            
+                                            if middlelane[i]<vmax:
+                                                middlelane[i]+=1
+                        
+                                        #if the cars that are in front are faster
+                                        elif leftlane[i].real<middlelane[i + count3+1].real:
+                                            #move into the middle lane
+                                            middlelane = np.delete(middlelane, i)
+                                            middlelane = np.insert(middlelane, i, leftlane[i])
+                                                                  
+                                            leftlane = np.delete(leftlane, i)
+                                            leftlane = np.insert(leftlane, i, 0)
+                                            
+                                            if middlelane[i]<vmax:
+                                                middlelane[i]+=1
+    
+            ### Moving to the slower lane ###
+    
+            #cars in the right lane:
+            if rightlane[i].real>1:
+                #space in the middle lane for it to move forward into
+                if middlelane[i].real==0:
+            
+                    #if cars in the middle lane ahead are traveling at the same speed or faster
+                    count4=0 
+                    while middlelane[i + count4+1].real<1 and count4<=vmax:
+                        count4+=1
+                    #no cars in that space
+                    if  rightlane[i].real<=count4:
+                    
+                        #move into the middle lane
+                        middlelane = np.delete(middlelane, i)
+                        middlelane = np.insert(middlelane, i, rightlane[i])                                          
+                                                                  
+                        rightlane = np.delete(rightlane, i)
+                        rightlane = np.insert(rightlane, i, 0)
+                        
+                    #the car is traveling slower or equal than the cars in the space 
+                    #and will have the distance between to not have to slow down
+                    elif 2*rightlane[i].real<=middlelane[i + count4+1].real:
+
+                        #move into the middle lane
+                        middlelane = np.delete(middlelane, i)
+                        middlelane = np.insert(middlelane, i, rightlane[i])                                          
+                                             
+                        rightlane = np.delete(rightlane, i)
+                        rightlane = np.insert(rightlane, i, 0)
+                        
+                        
+            ### cars in the middle lane can overtake or go into the slower lane
+            ### Overtaking ###
+        
+            #cars in the middle lane:
+            if middlelane[i].real>1:
+                #space in the right lane for it to move forward into
+                if rightlane[i].real==0:
+                    # are there cars in front?
+                    if sum(middlelane[i+1:i+int(middlelane[i].real)].real)!=0:
+                        #is it worth overtaking, the cars ahead:
+                        count = 0    #Count is the distance between two cars.
+                        while middlelane[i + count+1].real<1 and count<vmax:
+                            count+=1
+                        #if the velocity of the car is greater than the distance between
+                        if  middlelane[i].real>count: 
+                            #if the speed of the car is slower than it's max
+                            if middlelane[i].real< vmax: #middlelane[i + count+1].real: 
+                                #ensure we stay within index- this will not matter when we move to periodic system
+                                if i-vmax>0:
+                                    #ensuring the car behind in the right lane wont have to slow down
+                                    count2 = 0 
+                                    while rightlane[i - count2 - 1].real<1 and count2<vmax:
+                                        count2+=1
+                                    #if the speed (1 timestep) of car behind is smaller than the distance
+                                    if rightlane[[i - count2-1]].real<count2:
+                                        #ensuring the car won't have to slow down in the right lane
+                                        count3 = 0 
+                                        while rightlane[i + count3+1].real<1 and count3<=vmax:
+                                            count3+=1
+                                        #no cars infront at distance equivalent to that will be travelled in one time step.
+                                        if  middlelane[i].real<count3:
+                                            #move into the right lane
+                                            rightlane = np.delete(rightlane, i)
+                                            rightlane = np.insert(rightlane, i, middlelane[i])
+                                                                  
+                                            middlelane = np.delete(middlelane, i)
+                                            middlelane = np.insert(middlelane, i, 0)
+                                            
+                                            if rightlane[i]<vmax:
+                                                rightlane[i]+=1
+                        
+                                        #if the cars that are in front are faster
+                                        elif middlelane[i].real<rightlane[i + count3+1].real:
+     
+                                            #move into the right lane
+                                            rightlane = np.delete(rightlane, i)
+                                            rightlane = np.insert(rightlane, i, middlelane[i])
+                                                                  
+                                            middlelane = np.delete(middlelane, i)
+                                            middleane = np.insert(middlelane, i, 0)
+                            
+                                            if rightlane[i]<vmax:
+                                                rightlane[i]+=1
+    
+            ### Moving to the slower lane ###
+    
+            #cars in the middle lane:
+            if middlelane[i].real>1:
+                #space in the left lane for it to move forward into
+                if leftlane[i].real==0:
+            
+                    #if cars in the left lane ahead are traveling at the same speed or faster
+                    count4=0 
+                    while leftlane[i + count4+1].real<1 and count4<=vmax:
+                        count4+=1
+                    #no cars in that space
+                    if  middlelane[i].real<=count4:
+                    
+                        #move into the other lane
+                        leftlane = np.delete(leftlane, i)
+                        leftlane = np.insert(leftlane, i, middlelane[i])                                          
+                                                                  
+                        middlelane = np.delete(middlelane, i)
+                        middlelane = np.insert(middlelane, i, 0)
+            
+        
+        #reducing each lane to its oringial size and back into the one road containing each lane.
+        #It was important to double the size of the road so that the objects we are taking into consideration when 
+        #checking cars forward and behind, dont exceed the limits of the array
+        tripleroad[0,] = np.concatenate((leftlane[n:n+int(n/2)], leftlane[int(n/2):n]))
+        tripleroad[1,] = np.concatenate((middlelane[n:n+int(n/2)], middlelane[int(n/2):n]))
+        tripleroad[2,] = np.concatenate((rightlane[n:n+int(n/2)], rightlane[int(n/2):n]))
+        
+        for j in range(3):
+            
+            ##create loop like extention to the end of the road
+            road = np.concatenate((tripleroad[j,], tripleroad[j,]))
+                   
+            #iterate along the road
+            for i in range(2*n-vmax_bikes,  -1, -1):
+                
+                #save the complex part to add on when any changes to the velocity are made
+                comp = road[i].imag*1j
+                
+                
+                #setting the max speed depending on vehicle type
+                if road[i].imag == -1:
+                    vmax = vmax_lorries
+                elif road[i].imag == 1:
+                    vmax = vmax_bikes
+                else:
+                    vmax = vmax_cars
+                
+                
+                ### Rule 1 ###
+                # If the velocity v of the car is lower than vmax , and the distance to the next car
+                # ahead is larger than v + 1, the speed is increased by one.
+                if road[i].real>0: 
+                    #if there are no cars in front
+                    if sum(road[i+1:i+int(road[i].real)].real)==0:
+                        if road[i].real<vmax:
+                            road[i]+=1
+            
+            
+                    ### Rule 2###
+                
+                    # If a driver at site i sees the next vehicle at site i+j, with j < v, 
+                    # they reduce speed to j −1.  
+                    else:
+                        count5 = 1
+                        #If there is a car directly in front slow to stationary.
+                        if road[i+1].real!=0:
+                            road[i]=1 + comp
+                        else:
+                            while road[i + int(count5.real)].real<1:
+                                 #Count is the distance between two cars.
+                                count5+=1
+                            road[i]=count5 + comp
+            ### Rule 4 ###
+        
+            # Each vehicle is advanced by v sites.
+            # As the vechicles move forward we have to iterate in reverse as cars move forward.
+            for i in range(2*n-vmax_bikes, -1, -1): 
+
+                #cars move forward 
+                if road[i].real>0:                       
+                    road= np.insert(road, i+int(road[i].real)-1, road[i])       
+                    road = np.delete(road, i)
+                
+        
+            #reduce the road back to the original shape
+            tripleroad[j,] = np.concatenate((road[n:n+int(n/2)], road[int(n/2):n]))
+
+            ###Rule 3 ###
+                
+            # The velocity of each moving vehicle is decreased by one with probability p.
+            for i in range(n):
+                if np.random.randint(1, 100)<prob_car_daw*100:       
+                    if tripleroad[j, i].real>1:                                     
+                        tripleroad[j, i]-=1
+                        
+                        
+       
+        #Visualisation
+        for j in range(3):
+            for i in range(n):
+                if tripleroad[j, i]==0:
+                    matrix[4*(iterations-1) +j,i]= 15+3*j 
+                elif tripleroad[j, i].imag == -1:
+                    matrix[4*(iterations-1) +j,i]= -50 #-30*j
+                elif tripleroad[j, i].imag == 1:
+                    matrix[4*(iterations-1) +j,i]= 50 #-30*j
+                else:
+                    matrix[4*(iterations-1) +j,i]= -20 #+30*j
+                    
+                    
+       ### Alternate visualiation tools ###
+            #street = []
+            #for i in range(n):
+                #if tripleroad[j,i]==0:
+            #    street.append(tripleroad[j,i])
+            #    else:
+            #        street.append(tripleroad[j,i]-1)
+            #print(iterations, street)
+        
+            
+            ### Data collection ###
+        
+            #data[2*iterations +j, 0]= iterations
+            #average speed- accouting for the fact the values are one greater than the speed
+            #data[2*iterations +j , 1]= round(sum(road[j, ])/np.count_nonzero(road[j, ]) -1, 1)
+ 
+        
+        #average speed over all iterations
+        av = round(sum(data[:,1])/(2*max_iterations), 2)
+        
+        #print("")
+        ###next time step ###
+        iterations +=1
+
+    ### Display Road ###
+    fig11 = plt.figure(figsize=(50,100))
+    ax11 = fig11.add_subplot(111)
+    ax11.set_xlabel('Length Along Road')
+    ax11.set_ylabel('4 x Time step')
+    ax11.set_title("Visual Repsresentation of One Lane Traffic  With Density of {} cars/space Over {} Time Steps With Dawdeling Probability of {}%. Average Velocity = {} spaces/timestep.".format(density, max_iterations, prob_car_daw, av))
+    ax11.imshow (matrix) 
+             
+  
